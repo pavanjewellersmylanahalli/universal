@@ -1,0 +1,340 @@
+// Universal Girvi Management System — Prisma Schema (Phase 1)
+// Database: PostgreSQL (Neon)
+// All monetary values use Decimal(20,6) to avoid floating-point errors
+// All tenant-owned tables include businessId for multi-tenant isolation
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+// MULTI-TENANT FOUNDATION
+// ─────────────────────────────────────────────────────────────────────────────
+
+model Business {
+  id          String   @id @default(cuid())
+  name        String
+  slug        String   @unique // URL-safe identifier
+  type        BusinessType @default(GIRVI)
+  description String?
+  logoUrl     String?
+  
+  // Contact
+  email       String?
+  phone       String?
+  website     String?
+  
+  // Address
+  address     String?
+  city        String?
+  state       String?
+  country     String   @default("IN")
+  pinCode     String?
+  
+  // Tax / Legal
+  gstNumber   String?
+  panNumber   String?
+  
+  // Locale
+  currency    String   @default("INR")
+  timezone    String   @default("Asia/Kolkata")
+  language    String   @default("en")
+  
+  // Status
+  isActive    Boolean  @default(true)
+  isSetupDone Boolean  @default(false)
+  
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+  
+  // Relations
+  settings    BusinessSettings?
+  users       User[]
+  roles       Role[]
+  auditLogs   AuditLog[]
+  
+  @@index([slug])
+}
+
+enum BusinessType {
+  JEWELLERY_SHOP
+  GIRVI
+  GOLD_LOAN
+  FINANCE
+  SILVER
+  PAWN
+  OTHER
+}
+
+model BusinessSettings {
+  id         String   @id @default(cuid())
+  businessId String   @unique
+  business   Business @relation(fields: [businessId], references: [id], onDelete: Cascade)
+  
+  // Numbering
+  girviPrefix      String  @default("GIRVI")
+  girviPadding     Int     @default(6)
+  customerPrefix   String  @default("CUST")
+  customerPadding  Int     @default(6)
+  paymentPrefix    String  @default("PAY")
+  receiptPrefix    String  @default("RCPT")
+  
+  // Financial
+  defaultLtv       Decimal @default(70) @db.Decimal(5, 2)  // 70%
+  defaultInterestRate Decimal @default(2) @db.Decimal(5, 2) // 2% per month
+  gracePeriodDays  Int     @default(0)
+  penaltyRate      Decimal @default(0) @db.Decimal(5, 2)
+  
+  // Payment allocation order (comma-separated)
+  paymentAllocationOrder String @default("INTEREST,PENALTY,CHARGES,PRINCIPAL")
+  
+  // Receipt / PDF
+  receiptHeader    String?
+  receiptFooter    String?
+  termsConditions  String?
+  
+  // Operational
+  financialYearStart String @default("04-01") // MM-DD
+  dueDateDays        Int    @default(30)
+  
+  createdAt  DateTime @default(now())
+  updatedAt  DateTime @updatedAt
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+// AUTHENTICATION & USER MANAGEMENT
+// ─────────────────────────────────────────────────────────────────────────────
+
+model User {
+  id            String    @id @default(cuid())
+  businessId    String
+  business      Business  @relation(fields: [businessId], references: [id], onDelete: Cascade)
+  
+  email         String
+  emailVerified DateTime?
+  name          String
+  phone         String?
+  
+  // Auth
+  passwordHash  String?
+  pinHash       String?
+  image         String?
+  
+  // Status
+  isActive      Boolean   @default(true)
+  isOwner       Boolean   @default(false)
+  
+  // Security
+  failedLoginAttempts Int  @default(0)
+  lockedUntil     DateTime?
+  lastLoginAt     DateTime?
+  lastLoginIp     String?
+  
+  createdAt     DateTime  @default(now())
+  updatedAt     DateTime  @updatedAt
+  deletedAt     DateTime?
+  
+  // Relations
+  roles         UserRole[]
+  sessions      Session[]
+  accounts      Account[]
+  auditLogs     AuditLog[]
+  
+  @@unique([businessId, email])
+  @@index([businessId])
+  @@index([email])
+}
+
+model Account {
+  id                String  @id @default(cuid())
+  userId            String
+  type              String
+  provider          String
+  providerAccountId String
+  refresh_token     String? @db.Text
+  access_token      String? @db.Text
+  expires_at        Int?
+  token_type        String?
+  scope             String?
+  id_token          String? @db.Text
+  session_state     String?
+  
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+  
+  @@unique([provider, providerAccountId])
+}
+
+model Session {
+  id           String   @id @default(cuid())
+  sessionToken String   @unique
+  userId       String
+  expires      DateTime
+  
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+  
+  @@index([userId])
+}
+
+model VerificationToken {
+  identifier String
+  token      String   @unique
+  expires    DateTime
+  
+  @@unique([identifier, token])
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+// ROLES & PERMISSIONS
+// ─────────────────────────────────────────────────────────────────────────────
+
+model Role {
+  id          String   @id @default(cuid())
+  businessId  String
+  business    Business @relation(fields: [businessId], references: [id], onDelete: Cascade)
+  
+  name        String
+  description String?
+  isSystem    Boolean  @default(false) // System roles cannot be deleted
+  
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+  
+  permissions RolePermission[]
+  users       UserRole[]
+  
+  @@unique([businessId, name])
+  @@index([businessId])
+}
+
+model Permission {
+  id          String   @id @default(cuid())
+  code        String   @unique // e.g. "customer:create"
+  category    String   // e.g. "customer"
+  name        String
+  description String?
+  
+  roles       RolePermission[]
+  
+  @@index([code])
+}
+
+model RolePermission {
+  roleId       String
+  permissionId String
+  
+  role       Role       @relation(fields: [roleId], references: [id], onDelete: Cascade)
+  permission Permission @relation(fields: [permissionId], references: [id], onDelete: Cascade)
+  
+  @@id([roleId, permissionId])
+}
+
+model UserRole {
+  userId String
+  roleId String
+  
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+  role Role @relation(fields: [roleId], references: [id], onDelete: Cascade)
+  
+  assignedAt DateTime @default(now())
+  assignedBy String?
+  
+  @@id([userId, roleId])
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+// AUDIT LOG
+// ─────────────────────────────────────────────────────────────────────────────
+
+model AuditLog {
+  id         String   @id @default(cuid())
+  businessId String
+  business   Business @relation(fields: [businessId], references: [id])
+  
+  userId     String?
+  user       User?    @relation(fields: [userId], references: [id])
+  
+  action     AuditAction
+  entity     String   // Table/entity name
+  entityId   String?
+  
+  oldValues  Json?
+  newValues  Json?
+  
+  reason     String?
+  ipAddress  String?
+  userAgent  String?
+  
+  createdAt  DateTime @default(now())
+  
+  @@index([businessId])
+  @@index([userId])
+  @@index([entity, entityId])
+  @@index([createdAt])
+}
+
+enum AuditAction {
+  USER_LOGIN
+  USER_LOGOUT
+  USER_LOGIN_FAILED
+  USER_CREATED
+  USER_UPDATED
+  USER_DELETED
+  USER_PASSWORD_CHANGED
+  USER_LOCKED
+  BUSINESS_CREATED
+  BUSINESS_UPDATED
+  SETTINGS_UPDATED
+  ROLE_CREATED
+  ROLE_UPDATED
+  ROLE_DELETED
+  PERMISSION_ASSIGNED
+  PERMISSION_REVOKED
+  // Phase 2+ additions will expand this enum
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+// APP SETTINGS (Global, non-tenant)
+// ─────────────────────────────────────────────────────────────────────────────
+
+model AppSetting {
+  id        String   @id @default(cuid())
+  key       String   @unique
+  value     String
+  category  String   @default("general")
+  
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+  
+  @@index([key])
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+// FILE STORAGE REFERENCES
+// ─────────────────────────────────────────────────────────────────────────────
+
+model StoredFile {
+  id           String   @id @default(cuid())
+  businessId   String?
+  
+  storageKey   String   @unique // Path/key in object storage
+  provider     String   @default("local") // local, s3, r2, etc.
+  
+  originalName String
+  mimeType     String
+  sizeBytes    Int
+  
+  entity       String?  // e.g. "customer", "girvi"
+  entityId     String?  // FK to that entity
+  fileType     String?  // e.g. "photo", "kyc", "receipt"
+  
+  uploadedBy   String?
+  
+  createdAt    DateTime @default(now())
+  
+  @@index([businessId])
+  @@index([entity, entityId])
+}

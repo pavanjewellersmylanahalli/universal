@@ -1,0 +1,21 @@
+services:
+  - type: web
+    name: girvipro-api
+    env: node
+    plan: free
+    buildCommand: "npm install && npx prisma generate && npm run build"
+    startCommand: "node .next/standalone/server.js"
+    healthCheckPath: /api/health
+    envVars:
+      - key: NODE_ENV
+        value: production
+      - key: DATABASE_URL
+        sync: false
+      - key: DIRECT_DATABASE_URL
+        sync: false
+      - key: AUTH_SECRET
+        sync: false
+      - key: NEXT_PUBLIC_APP_URL
+        sync: false
+      - key: STORAGE_PROVIDER
+        value: local
