@@ -10,6 +10,7 @@ import { authConfig } from "./auth.config";
 export const { handlers, auth, signIn, signOut } = NextAuth({
   ...authConfig,
   adapter: PrismaAdapter(prisma),
+  trustHost: true, // Trust all hosts (required for production deployment)
   providers: [
     Credentials({
       credentials: {
