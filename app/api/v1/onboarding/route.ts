@@ -49,6 +49,7 @@ export async function POST(req: NextRequest) {
       201
     );
   } catch (error) {
+    console.error("[Onboarding Error]", error);
     return handleApiError(error);
   }
 }
