@@ -1,4 +1,3 @@
-import { NextRequest } from "next/server";
 import { withAuth, withPermission, validateBody, handleApiError } from "@/lib/api/middleware";
 import { ok } from "@/lib/api/response";
 import { businessService } from "@/lib/services/business.service";

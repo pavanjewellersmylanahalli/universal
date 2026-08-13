@@ -1,4 +1,3 @@
-import { NextRequest } from "next/server";
 import { withAuth, withPermission, handleApiError } from "@/lib/api/middleware";
 import { ok } from "@/lib/api/response";
 import { userRepository } from "@/lib/repositories/user.repository";

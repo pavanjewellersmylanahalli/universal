@@ -38,7 +38,7 @@ export const businessStep1Schema = z.object({
   description: z.string().optional(),
 });
 
-export const businessStep2Schema = z.object({
+export const businessStep2BaseSchema = z.object({
   ownerName: z.string().min(2, "Owner name must be at least 2 characters"),
   email: z.string().email("Invalid email address"),
   phone: z.string().min(10, "Enter a valid phone number"),
@@ -49,7 +49,9 @@ export const businessStep2Schema = z.object({
     .regex(/[a-z]/, "Must contain lowercase")
     .regex(/[0-9]/, "Must contain number"),
   confirmPassword: z.string(),
-}).refine((d) => d.password === d.confirmPassword, {
+});
+
+export const businessStep2Schema = businessStep2BaseSchema.refine((d) => d.password === d.confirmPassword, {
   message: "Passwords do not match",
   path: ["confirmPassword"],
 });
@@ -58,18 +60,22 @@ export const businessStep3Schema = z.object({
   address: z.string().min(5, "Enter a valid address"),
   city: z.string().min(2, "Enter a city"),
   state: z.string().min(2, "Enter a state"),
-  country: z.string().default("IN"),
+  country: z.string().min(2, "Enter a country"),
   pinCode: z.string().optional(),
-  currency: z.string().default("INR"),
-  timezone: z.string().default("Asia/Kolkata"),
-  language: z.string().default("en"),
+  currency: z.string().min(3, "Enter a currency"),
+  timezone: z.string().min(2, "Enter a timezone"),
+  language: z.string().min(2, "Enter a language"),
   gstNumber: z.string().optional(),
   panNumber: z.string().optional(),
 });
 
 export const createBusinessSchema = businessStep1Schema
-  .merge(businessStep2Schema)
-  .merge(businessStep3Schema);
+  .merge(businessStep2BaseSchema)
+  .merge(businessStep3Schema)
+  .refine((data) => data.password === data.confirmPassword, {
+    message: "Passwords do not match",
+    path: ["confirmPassword"],
+  });
 
 export type LoginInput = z.infer<typeof loginSchema>;
 export type RegisterInput = z.infer<typeof registerSchema>;

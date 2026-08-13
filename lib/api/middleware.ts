@@ -1,4 +1,4 @@
-import { NextRequest, NextResponse } from "next/server";
+import { type NextRequest, NextResponse } from "next/server";
 import { auth } from "@/lib/auth";
 import {
   unauthorized,
@@ -24,10 +24,19 @@ export type AuthenticatedSession = {
   permissions: string[];
 };
 
-type ApiHandler<TContext = AuthenticatedSession> = (
+export type RouteContext = {
+  params: Promise<any>;
+};
+
+export type StandardRouteHandler = (
   req: NextRequest,
-  context: TContext,
-  params?: Record<string, string>
+  context: RouteContext
+) => Promise<NextResponse>;
+
+export type AuthenticatedRouteHandler = (
+  req: NextRequest,
+  session: AuthenticatedSession,
+  params: any
 ) => Promise<NextResponse>;
 
 /**
@@ -35,8 +44,10 @@ type ApiHandler<TContext = AuthenticatedSession> = (
  * Extracts userId and businessId from the JWT session.
  * NEVER trusts businessId from the request body/params.
  */
-export function withAuth(handler: ApiHandler): ApiHandler<AuthenticatedSession> {
-  return async (req, _ctx, params) => {
+export function withAuth(
+  handler: AuthenticatedRouteHandler
+): StandardRouteHandler {
+  return async (req, context) => {
     try {
       const session = await auth();
 
@@ -44,21 +55,21 @@ export function withAuth(handler: ApiHandler): ApiHandler<AuthenticatedSession> 
         return unauthorized();
       }
 
-      const sessionAny = session as any;
-
-      const context: AuthenticatedSession = {
+      const authSession: AuthenticatedSession = {
         userId: session.user.id!,
-        businessId: sessionAny.businessId,
-        businessName: sessionAny.businessName,
-        isOwner: sessionAny.isOwner ?? false,
-        permissions: sessionAny.permissions ?? [],
+        businessId: session.businessId,
+        businessName: session.businessName,
+        isOwner: session.isOwner,
+        permissions: session.permissions,
       };
 
-      if (!context.userId || !context.businessId) {
+      if (!authSession.userId || !authSession.businessId) {
         return unauthorized("Invalid session");
       }
 
-      return handler(req, context, params);
+      const resolvedParams = context?.params ? await context.params : {};
+
+      return handler(req, authSession, resolvedParams);
     } catch (error) {
       return handleApiError(error);
     }
@@ -71,41 +82,26 @@ export function withAuth(handler: ApiHandler): ApiHandler<AuthenticatedSession> 
  */
 export function withPermission(
   requiredPermission: string,
-  handler: ApiHandler<AuthenticatedSession>
-): ApiHandler<AuthenticatedSession> {
-  return async (req, ctx, params) => {
-    try {
-      const hasPermission =
-        ctx.isOwner || ctx.permissions.includes(requiredPermission);
+  handler: AuthenticatedRouteHandler
+): AuthenticatedRouteHandler {
+  return async (req, session, params) => {
+    const hasPermission =
+      session.isOwner || session.permissions.includes(requiredPermission);
 
-      if (!hasPermission) {
-        logger.warn("Permission denied", {
-          userId: ctx.userId,
-          businessId: ctx.businessId,
-          required: requiredPermission,
-        });
-        return forbidden(`Missing permission: ${requiredPermission}`);
-      }
-
-      return handler(req, ctx, params);
-    } catch (error) {
-      return handleApiError(error);
+    if (!hasPermission) {
+      logger.warn("Permission denied", {
+        userId: session.userId,
+        businessId: session.businessId,
+        required: requiredPermission,
+      });
+      return forbidden(`Missing permission: ${requiredPermission}`);
     }
+
+    return handler(req, session, params);
   };
 }
 
-/**
- * Validates that a resource's businessId matches the session's businessId.
- * Call this before returning any tenant-owned resource.
- */
-export function assertTenantAccess(
-  resourceBusinessId: string,
-  session: AuthenticatedSession
-): void {
-  if (resourceBusinessId !== session.businessId) {
-    throw new TenantError();
-  }
-}
+export { assertTenantAccess } from "./tenant";
 
 /**
  * Validates request body against a Zod schema.

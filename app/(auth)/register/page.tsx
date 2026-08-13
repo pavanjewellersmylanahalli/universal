@@ -94,17 +94,17 @@ export default function RegisterPage() {
 
   const step1Form = useForm<BusinessStep1Input>({
     resolver: zodResolver(businessStep1Schema),
-    defaultValues: { type: "JEWELLERY_SHOP", ...(formData as any) },
+    defaultValues: { type: "JEWELLERY_SHOP", ...(formData as Partial<BusinessStep1Input>) },
   });
 
   const step2Form = useForm<BusinessStep2Input>({
     resolver: zodResolver(businessStep2Schema),
-    defaultValues: formData as any,
+    defaultValues: formData as Partial<BusinessStep2Input>,
   });
 
   const step3Form = useForm<BusinessStep3Input>({
     resolver: zodResolver(businessStep3Schema),
-    defaultValues: { country: "IN", currency: "INR", timezone: "Asia/Kolkata", language: "en", ...formData as any },
+    defaultValues: { country: "IN", currency: "INR", timezone: "Asia/Kolkata", language: "en", ...(formData as Partial<BusinessStep3Input>) },
   });
 
   const handleStep1 = (data: BusinessStep1Input) => {

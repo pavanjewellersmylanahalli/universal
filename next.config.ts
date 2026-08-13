@@ -37,10 +37,8 @@ const nextConfig: NextConfig = {
     ],
   },
 
-  // Experimental
-  experimental: {
-    serverComponentsExternalPackages: ["@node-rs/argon2"],
-  },
+  // External packages
+  serverExternalPackages: ["@node-rs/argon2"],
 };
 
 export default nextConfig;

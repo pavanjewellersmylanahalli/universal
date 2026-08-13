@@ -5,17 +5,11 @@ import { prisma } from "@/lib/db";
 import { verify } from "@node-rs/argon2";
 import { loginSchema } from "@/lib/validations/auth";
 import { logger } from "@/lib/logger";
+import { authConfig } from "./auth.config";
 
 export const { handlers, auth, signIn, signOut } = NextAuth({
+  ...authConfig,
   adapter: PrismaAdapter(prisma),
-  session: {
-    strategy: "jwt",
-    maxAge: 30 * 24 * 60 * 60, // 30 days
-  },
-  pages: {
-    signIn: "/login",
-    error: "/login",
-  },
   providers: [
     Credentials({
       credentials: {
@@ -132,29 +126,4 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
       },
     }),
   ],
-  callbacks: {
-    async jwt({ token, user }) {
-      if (user) {
-        // Initial sign in — store everything from authorize()
-        token.id = user.id;
-        token.businessId = (user as any).businessId;
-        token.businessName = (user as any).businessName;
-        token.businessSlug = (user as any).businessSlug;
-        token.isOwner = (user as any).isOwner;
-        token.permissions = (user as any).permissions;
-      }
-      return token;
-    },
-    async session({ session, token }) {
-      if (token) {
-        session.user.id = token.id as string;
-        (session as any).businessId = token.businessId;
-        (session as any).businessName = token.businessName;
-        (session as any).businessSlug = token.businessSlug;
-        (session as any).isOwner = token.isOwner;
-        (session as any).permissions = token.permissions;
-      }
-      return session;
-    },
-  },
 });

@@ -23,8 +23,7 @@ import {
   X,
   Search,
 } from "lucide-react";
-import { useState } from "react";
-import { Button } from "@/components/ui/button";
+
 
 const NAV_ITEMS = [
   { href: "/dashboard", label: "Dashboard", icon: LayoutDashboard },
@@ -81,7 +80,7 @@ function NavItem({
 export function Sidebar({ onClose }: { onClose?: () => void }) {
   const pathname = usePathname();
   const { data: session } = useSession();
-  const businessName = (session as any)?.businessName ?? "GirviPro";
+  const businessName = session?.businessName ?? "GirviPro";
 
   return (
     <div className="flex flex-col h-full bg-zinc-950 border-r border-zinc-800/50">

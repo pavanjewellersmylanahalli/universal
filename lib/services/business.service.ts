@@ -1,11 +1,11 @@
 import { hash } from "@node-rs/argon2";
 import { prisma } from "@/lib/db";
 import { businessRepository } from "@/lib/repositories/business.repository";
-import { userRepository } from "@/lib/repositories/user.repository";
-import { ConflictError, ValidationError } from "@/lib/api/errors";
 import type { CreateBusinessInput } from "@/lib/validations/auth";
 import { SYSTEM_PERMISSIONS } from "@/lib/constants/permissions";
 import { logger } from "@/lib/logger";
+import { type BusinessType } from "@prisma/client";
+
 
 function generateSlug(name: string): string {
   return name
@@ -40,7 +40,7 @@ export class BusinessService {
         data: {
           name: input.name,
           slug,
-          type: input.type as any,
+          type: input.type as BusinessType,
           email: input.email,
           phone: input.phone,
           address: input.address,

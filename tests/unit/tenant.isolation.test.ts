@@ -1,5 +1,6 @@
 import { describe, it, expect } from "vitest";
 import { SYSTEM_PERMISSIONS } from "@/lib/constants/permissions";
+import { assertTenantAccess } from "@/lib/api/tenant";
 
 describe("Permissions", () => {
   it("all permission codes are unique", () => {
@@ -35,7 +36,6 @@ describe("Permissions", () => {
 
 describe("Tenant Isolation Logic", () => {
   it("assertTenantAccess throws when businessIds differ", () => {
-    const { assertTenantAccess } = require("@/lib/api/middleware");
     const session = {
       userId: "user-1",
       businessId: "business-A",
@@ -47,7 +47,6 @@ describe("Tenant Isolation Logic", () => {
   });
 
   it("assertTenantAccess passes when businessIds match", () => {
-    const { assertTenantAccess } = require("@/lib/api/middleware");
     const session = {
       userId: "user-1",
       businessId: "business-A",

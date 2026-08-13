@@ -1,9 +1,8 @@
-import { NextRequest } from "next/server";
-import { withAuth, handleApiError } from "@/lib/api/middleware";
+import { type NextRequest } from "next/server";
+import { handleApiError } from "@/lib/api/middleware";
 import { ok, badRequest } from "@/lib/api/response";
 import { businessService } from "@/lib/services/business.service";
 import { createBusinessSchema } from "@/lib/validations/auth";
-import { ConflictError, ValidationError } from "@/lib/api/errors";
 import { prisma } from "@/lib/db";
 
 export const runtime = "nodejs";

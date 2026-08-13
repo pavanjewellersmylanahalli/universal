@@ -86,7 +86,7 @@ function StatCard({
 
 export default async function DashboardPage() {
   const session = await auth();
-  const businessName = (session as any)?.businessName ?? "Your Business";
+  const businessName = session?.businessName ?? "Your Business";
   const userName = session?.user?.name ?? "User";
 
   const now = new Date();

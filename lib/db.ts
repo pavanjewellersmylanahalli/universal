@@ -1,6 +1,6 @@
 import { PrismaClient } from "@prisma/client";
 import { PrismaNeon } from "@prisma/adapter-neon";
-import { neonConfig, Pool } from "@neondatabase/serverless";
+import { neonConfig } from "@neondatabase/serverless";
 
 // In non-browser environments, use ws for WebSocket
 if (typeof WebSocket === "undefined") {
@@ -16,15 +16,26 @@ const globalForPrisma = globalThis as unknown as {
 function createPrismaClient() {
   const connectionString = process.env.DATABASE_URL;
   if (!connectionString || connectionString.includes("user:password@neon-host")) {
-    // Return a basic client that will fail gracefully on actual DB calls
-    // This allows the app to start locally without a database configured
+    const dummyAdapter = {
+      provider: "postgres" as const,
+      adapterName: "dummy",
+      queryRaw: async () => {
+        throw new Error("Database is not configured. Please set DATABASE_URL in your environment.");
+      },
+      executeRaw: async () => {
+        throw new Error("Database is not configured. Please set DATABASE_URL in your environment.");
+      },
+      connect: async () => {
+        return dummyAdapter as any;
+      }
+    };
     return new PrismaClient({
+      adapter: dummyAdapter,
       log: process.env.NODE_ENV === "development" ? ["error", "warn"] : ["error"],
-    }) as unknown as PrismaClient;
+    });
   }
 
-  const pool = new Pool({ connectionString });
-  const adapter = new PrismaNeon(pool);
+  const adapter = new PrismaNeon({ connectionString });
 
   return new PrismaClient({
     adapter,

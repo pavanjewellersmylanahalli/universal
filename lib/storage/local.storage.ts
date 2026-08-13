@@ -10,6 +10,7 @@ const UPLOAD_DIR = path.join(process.cwd(), "uploads");
  */
 export class LocalStorageService implements StorageService {
   async upload(buffer: Buffer, key: string, _mimeType: string): Promise<UploadResult> {
+    void _mimeType;
     const fullPath = path.join(UPLOAD_DIR, key);
     await fs.mkdir(path.dirname(fullPath), { recursive: true });
     await fs.writeFile(fullPath, buffer);
@@ -21,6 +22,7 @@ export class LocalStorageService implements StorageService {
   }
 
   async getSignedUrl(key: string, _expiresInSeconds?: number): Promise<string> {
+    void _expiresInSeconds;
     return `/api/files/${key}`;
   }
 
