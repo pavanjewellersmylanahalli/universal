@@ -1,8 +1,8 @@
 import type { NextConfig } from "next";
 
 const nextConfig: NextConfig = {
-  // Enable standalone output for optimized deployment
-  output: "standalone",
+  // Enable standalone output for Render, but not for Vercel
+  ...(process.env.VERCEL ? {} : { output: "standalone" }),
 
   // Security headers
   async headers() {
