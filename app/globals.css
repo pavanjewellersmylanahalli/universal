@@ -67,6 +67,16 @@
   --shadow-glass: 0 4px 24px -4px rgba(0, 0, 0, 0.4);
 }
 
+/* Hide number input spin buttons (up/down scrollable arrows) */
+input[type="number"]::-webkit-inner-spin-button,
+input[type="number"]::-webkit-outer-spin-button {
+  -webkit-appearance: none;
+  margin: 0;
+}
+input[type="number"] {
+  -moz-appearance: textfield;
+}
+
 @layer base {
   :root {
     /* Light mode CSS variables — shadcn/ui compatible */
