@@ -38,8 +38,11 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
-# Create tables
-Base.metadata.create_all(bind=engine)
+# Create tables gracefully
+try:
+    Base.metadata.create_all(bind=engine)
+except Exception as e:
+    print(f"Warning: Database table initialization warning: {e}")
 
 # Mount V1 Routers
 api_v1 = f"{settings.API_V1_STR}"
