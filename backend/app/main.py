@@ -38,11 +38,45 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
-# Create tables gracefully
+def run_auto_migrations():
+    try:
+        from sqlalchemy import text
+        with engine.connect() as conn:
+            migration_statements = [
+                "ALTER TABLE pledges ADD COLUMN IF NOT EXISTS customer_name VARCHAR;",
+                "ALTER TABLE pledges ADD COLUMN IF NOT EXISTS customer_phone VARCHAR;",
+                "ALTER TABLE pledges ADD COLUMN IF NOT EXISTS relation_type VARCHAR;",
+                "ALTER TABLE pledges ADD COLUMN IF NOT EXISTS relation_name VARCHAR;",
+                "ALTER TABLE pledges ADD COLUMN IF NOT EXISTS monthly_income VARCHAR;",
+                "ALTER TABLE pledges ADD COLUMN IF NOT EXISTS customer_address TEXT;",
+                "ALTER TABLE pledges ADD COLUMN IF NOT EXISTS customer_photo_url TEXT;",
+                "ALTER TABLE pledges ADD COLUMN IF NOT EXISTS pledge_no VARCHAR;",
+                "ALTER TABLE pledges ADD COLUMN IF NOT EXISTS principal_amount NUMERIC(15, 2);",
+                "ALTER TABLE pledges ADD COLUMN IF NOT EXISTS articles JSONB;",
+                "ALTER TABLE pledges ADD COLUMN IF NOT EXISTS articles_summary TEXT;",
+                "ALTER TABLE bank_repledges ADD COLUMN IF NOT EXISTS pledge_ids JSONB;",
+                "ALTER TABLE bank_repledges ADD COLUMN IF NOT EXISTS repledge_bill_no VARCHAR;",
+                "ALTER TABLE bank_repledges ADD COLUMN IF NOT EXISTS repledge_name VARCHAR;",
+                "ALTER TABLE bank_repledges ADD COLUMN IF NOT EXISTS repledge_bank VARCHAR;",
+                "ALTER TABLE bank_repledges ADD COLUMN IF NOT EXISTS repledge_amount NUMERIC(15, 2) DEFAULT 0;"
+            ]
+            for stmt in migration_statements:
+                try:
+                    conn.execute(text(stmt))
+                except Exception as inner_e:
+                    pass
+            conn.commit()
+            print("Auto database column migrations completed.")
+    except Exception as e:
+        print(f"Warning: Auto-migration warning: {e}")
+
+# Create tables gracefully & run migrations
 try:
     Base.metadata.create_all(bind=engine)
+    run_auto_migrations()
 except Exception as e:
     print(f"Warning: Database table initialization warning: {e}")
+
 
 # Mount V1 Routers
 api_v1 = f"{settings.API_V1_STR}"
