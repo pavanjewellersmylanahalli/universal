@@ -46,17 +46,18 @@ def list_eligible_pledges(
     return [
         {
             "id": p.id,
-            "pledge_no": p.pledge_no,
-            "pledge_date": p.pledge_date,
-            "customer_name": p.customer_name,
-            "customer_phone": p.customer_phone,
-            "principal_amount": float(p.principal_amount),
-            "articles_summary": p.articles_summary,
-            "total_gross_weight": float(p.total_gross_weight),
-            "total_net_weight": float(p.total_net_weight),
+            "pledge_no": p.pledge_no or p.pledge_number,
+            "pledge_date": str(p.pledge_date) if p.pledge_date else "",
+            "customer_name": p.customer_name or (p.customer.name if p.customer else "Customer"),
+            "customer_phone": p.customer_phone or (p.customer.mobile if p.customer else ""),
+            "principal_amount": float(p.principal_amount or p.loan_amount or 0),
+            "articles_summary": p.articles_summary or "Ornaments",
+            "total_gross_weight": float(p.total_gross_weight or 0),
+            "total_net_weight": float(p.total_net_weight or 0),
         }
         for p in pledges
     ]
+
 
 @router.get("", response_model=List[BankRePledgeOut])
 def list_bank_repledges(
