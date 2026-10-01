@@ -8,8 +8,9 @@ from app.core.deps import get_current_tenant_context, TenantContext
 from app.core.errors import APIException
 from app.models.bank_repledge import BankRePledge, BankRePledgeInterestPayment
 from app.models.pledge import Pledge
-from app.models.accounting import JournalEntry, JournalLine
+from app.services.ledger_engine import LedgerEngine
 from app.schemas.bank_repledge import BankRePledgeCreate, BankRePledgeOut, BankInterestPaymentCreate, BankInterestPaymentOut
+
 
 router = APIRouter(prefix="/bank-repledge", tags=["Bank Re-Pledge"])
 
@@ -122,33 +123,30 @@ def create_bank_repledge(
         pledge.is_bank_repledged = True
         pledge.status = "RE-PLEDGED"
 
-    # Post Double-Entry Accounting Entry
-    # DEBIT Cash / Bank (Received from Bank Repledge)
-    # CREDIT Bank Loan Payable / Repledge Liability
-    entry = JournalEntry(
+    # Ledger Entry: Record cash received and double entry liability
+    LedgerEngine.record_cash_transaction(
+        db=db,
         organization_id=context.organization_id,
         branch_id=context.branch_id,
-        entry_date=payload.repledge_date,
-        description=f"Bank Re-Pledge Loan Received - Bill #{payload.repledge_bill_no} ({payload.repledge_name} / {payload.repledge_bank})"
+        transaction_type="CASH_IN",
+        category="BANK_REPLEDE",
+        amount=payload.repledge_amount,
+        reference_type="BANK_REPLEDGE",
+        reference_id=repledge.id,
+        description=f"Bank Re-Pledge loan received - Bill #{payload.repledge_bill_no} ({payload.repledge_name} / {payload.repledge_bank})"
     )
-    db.add(entry)
-    db.flush()
 
-    line_debit = JournalLine(
-        journal_entry_id=entry.id,
-        account_name="CASH IN HAND",
-        account_type="ASSET",
-        debit=payload.repledge_amount,
-        credit=0
-    )
-    line_credit = JournalLine(
-        journal_entry_id=entry.id,
-        account_name="BANK RE-PLEDGE LOAN LIABILITY",
-        account_type="LIABILITY",
+    LedgerEngine.record_double_entry(
+        db=db,
+        organization_id=context.organization_id,
+        branch_id=context.branch_id,
+        account_head="BANK_REPLEDGE_LIABILITY",
         debit=0,
-        credit=payload.repledge_amount
+        credit=payload.repledge_amount,
+        entity_type="BANK_REPLEDGE",
+        entity_id=repledge.id,
+        description=f"Bank Re-Pledge liability for bill {payload.repledge_bill_no}"
     )
-    db.add_all([line_debit, line_credit])
 
     db.commit()
     db.refresh(repledge)
@@ -185,33 +183,36 @@ def record_bank_interest_payment(
     )
     db.add(payment)
 
-    # Double-Entry Ledger Expense
-    # DEBIT Bank Interest Paid Expense
-    # CREDIT Cash / Bank
-    entry = JournalEntry(
+    # Record Cash Out and Expense Double-Entry
+    if (payload.payment_mode or "CASH") == "CASH":
+        LedgerEngine.record_cash_transaction(
+            db=db,
+            organization_id=context.organization_id,
+            branch_id=context.branch_id,
+            transaction_type="CASH_OUT",
+            category="EXPENSE",
+            amount=payload.amount,
+            reference_type="BANK_REPLEDGE_INTEREST",
+            reference_id=payment.id,
+            description=f"Bank Re-Pledge monthly interest paid - Bill #{repledge.repledge_bill_no}"
+        )
+
+    LedgerEngine.record_double_entry(
+        db=db,
         organization_id=context.organization_id,
         branch_id=context.branch_id,
-        entry_date=payload.payment_date,
-        description=f"Bank Re-Pledge Monthly Interest Paid - Bill #{repledge.repledge_bill_no} ({repledge.repledge_bank})"
-    )
-    db.add(entry)
-    db.flush()
-
-    line_exp = JournalLine(
-        journal_entry_id=entry.id,
-        account_name="BANK RE-PLEDGE INTEREST EXPENSE",
-        account_type="EXPENSE",
+        account_head="BANK_REPLEDGE_INTEREST_EXPENSE",
         debit=payload.amount,
-        credit=0
+        credit=0,
+        entity_type="BANK_REPLEDGE_INTEREST",
+        entity_id=payment.id,
+        description=f"Bank Re-Pledge interest payment for bill {repledge.repledge_bill_no}"
     )
-    line_cash = JournalLine(
-        journal_entry_id=entry.id,
-        account_name="CASH IN HAND" if payload.payment_mode == "CASH" else "BANK ACCOUNT",
-        account_type="ASSET",
-        debit=0,
-        credit=payload.amount
-    )
-    db.add_all([line_exp, line_cash])
+
+    db.commit()
+    db.refresh(payment)
+    return BankInterestPaymentOut.model_validate(payment)
+
 
     db.commit()
     db.refresh(payment)
