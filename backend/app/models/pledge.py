@@ -1,6 +1,6 @@
 import uuid
 from datetime import datetime, date
-from sqlalchemy import Column, String, Boolean, DateTime, ForeignKey, Text, Numeric, Integer, Date
+from sqlalchemy import Column, String, Boolean, DateTime, ForeignKey, Text, Numeric, Integer, Date, JSON
 from sqlalchemy.orm import relationship
 from app.core.database import Base
 
@@ -13,13 +13,25 @@ class Pledge(Base):
     id = Column(String, primary_key=True, default=gen_uuid)
     organization_id = Column(String, ForeignKey("organizations.id", ondelete="CASCADE"), nullable=False, index=True)
     branch_id = Column(String, ForeignKey("branches.id", ondelete="SET NULL"), nullable=True, index=True)
-    customer_id = Column(String, ForeignKey("customers.id", ondelete="CASCADE"), nullable=False, index=True)
+    customer_id = Column(String, ForeignKey("customers.id", ondelete="SET NULL"), nullable=True, index=True)
 
+    # Customer Details merged directly into pledges table
+    customer_name = Column(String, nullable=True, index=True)
+    customer_phone = Column(String, nullable=True, index=True)
+    relation_type = Column(String, nullable=True) # Father / Husband
+    relation_name = Column(String, nullable=True) # Father / Husband Name
+    monthly_income = Column(String, nullable=True)
+    customer_address = Column(Text, nullable=True)
+    customer_photo_url = Column(Text, nullable=True)
+
+    # Pledge & Loan Information
+    pledge_no = Column(String, nullable=True, index=True)
     pledge_number = Column(String, nullable=False, index=True)
     pledge_date = Column(Date, default=date.today, nullable=False)
     due_date = Column(Date, nullable=False)
 
     loan_amount = Column(Numeric(15, 2), nullable=False) # Principal loan given
+    principal_amount = Column(Numeric(15, 2), nullable=True)
     monthly_interest_rate = Column(Numeric(5, 2), nullable=False, default=1.50) # e.g. 1.5% per month
     interest_type = Column(String, default="MONTHLY") # MONTHLY, DAILY, SLAB, FIXED
     grace_period_days = Column(Integer, default=0)
@@ -29,9 +41,12 @@ class Pledge(Base):
     total_paid_principal = Column(Numeric(15, 2), default=0.00)
     total_paid_interest = Column(Numeric(15, 2), default=0.00)
 
-    total_gross_weight = Column(Numeric(10, 3), nullable=False) # in grams
-    total_net_weight = Column(Numeric(10, 3), nullable=False) # in grams
-    total_market_value = Column(Numeric(15, 2), nullable=False)
+    # Articles & Ornaments merged directly into pledges table
+    articles = Column(JSON, nullable=True, default=list) # JSON array of article items
+    articles_summary = Column(Text, nullable=True)
+    total_gross_weight = Column(Numeric(10, 3), nullable=False, default=0) # in grams
+    total_net_weight = Column(Numeric(10, 3), nullable=False, default=0) # in grams
+    total_market_value = Column(Numeric(15, 2), nullable=False, default=0)
 
     status = Column(String, default="ACTIVE", index=True) # DRAFT, ACTIVE, PARTIAL_PAYMENT, RENEWED, OVERDUE, AUCTION_PENDING, CLOSED, RE-PLEDGED
     is_bank_repledged = Column(Boolean, default=False)
@@ -44,6 +59,7 @@ class Pledge(Base):
     customer = relationship("Customer", back_populates="pledges")
     items = relationship("PledgeItem", back_populates="pledge", cascade="all, delete-orphan")
     payments = relationship("PledgePayment", back_populates="pledge", cascade="all, delete-orphan")
+
 
 class PledgeItem(Base):
     __tablename__ = "pledge_items"

@@ -108,20 +108,57 @@ def create_pledge(
         count = db.query(Pledge).filter(Pledge.organization_id == context.organization_id).count()
         pledge_num = f"{prefix}-{count + 1:06d}"
 
-    # Calculate totals from items
+    # Calculate totals and build articles JSON array for single unified table storage
+    articles_list = []
+    articles_summary_parts = []
+    for item in payload.items:
+        item_dict = {
+            "ornament_category": item.ornament_category,
+            "description": item.description,
+            "quantity": item.quantity,
+            "gross_weight": float(item.gross_weight),
+            "less_weight": float(item.less_weight),
+            "net_weight": float(item.net_weight),
+            "purity": item.purity,
+            "estimated_market_value": float(item.estimated_market_value),
+            "loan_value": float(item.loan_value),
+            "remarks": item.remarks,
+            "photo_url": item.photo_url
+        }
+        articles_list.append(item_dict)
+        articles_summary_parts.append(f"{item.quantity}x {item.ornament_category} ({item.gross_weight}g)")
+
     tot_gross = sum([item.gross_weight for item in payload.items])
     tot_net = sum([item.net_weight for item in payload.items])
     tot_market = sum([item.estimated_market_value for item in payload.items])
     tot_loan = payload.loan_amount or sum([item.loan_value for item in payload.items])
+    articles_summary_str = ", ".join(articles_summary_parts)
 
     pledge = Pledge(
         organization_id=context.organization_id,
         branch_id=context.branch_id,
         customer_id=customer_id,
+        
+        # Merged Customer Details
+        customer_name=payload.customer_name or (customer.name if 'customer' in locals() and customer else None),
+        customer_phone=payload.mobile_number or (customer.mobile if 'customer' in locals() and customer else None),
+        relation_type=payload.relation_type,
+        relation_name=payload.relation_name,
+        monthly_income=str(payload.monthly_income) if payload.monthly_income else None,
+        customer_address=payload.address,
+        customer_photo_url=payload.customer_photo_url,
+
+        # Merged Articles & Items Details
+        articles=articles_list,
+        articles_summary=articles_summary_str,
+
+        # Pledge Numbers & Loans
+        pledge_no=pledge_num,
         pledge_number=pledge_num,
         pledge_date=payload.pledge_date or date.today(),
         due_date=payload.due_date,
         loan_amount=tot_loan,
+        principal_amount=tot_loan,
         monthly_interest_rate=payload.monthly_interest_rate,
         principal_outstanding=tot_loan,
         interest_outstanding=Decimal("0.00"),
@@ -151,6 +188,7 @@ def create_pledge(
             photo_url=item.photo_url
         )
         db.add(p_item)
+
 
     # Cash Out for Loan Disbursement
     LedgerEngine.record_cash_transaction(

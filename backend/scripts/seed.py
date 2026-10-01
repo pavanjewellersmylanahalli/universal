@@ -117,15 +117,34 @@ def seed_db():
         db.add(cust_a1)
         db.flush()
 
-        # Pledge for Tenant A
+        # Pledge for Tenant A (Consolidated single table row)
         pledge_a1 = Pledge(
             organization_id=org_a.id,
             branch_id=branch_a.id,
             customer_id=cust_a1.id,
+            customer_name="Ramesh Patel",
+            customer_phone="+91 9123456789",
+            relation_type="Father",
+            relation_name="Suresh Patel",
+            customer_address="45 Station Road, Mumbai",
+            articles=[{
+                "ornament_category": "Gold Chain 22K",
+                "description": "22K Gold Chain with Pendant",
+                "quantity": 1,
+                "gross_weight": 12.500,
+                "less_weight": 0.500,
+                "net_weight": 12.000,
+                "purity": "22K",
+                "estimated_market_value": 82500.0,
+                "loan_value": 50000.0
+            }],
+            articles_summary="1x Gold Chain 22K (12.500g)",
+            pledge_no="ROYAL-GIRVI-000001",
             pledge_number="ROYAL-GIRVI-000001",
             pledge_date=date.today(),
             due_date=date(2026, 12, 31),
             loan_amount=Decimal("50000.00"),
+            principal_amount=Decimal("50000.00"),
             monthly_interest_rate=Decimal("1.50"),
             principal_outstanding=Decimal("50000.00"),
             interest_outstanding=Decimal("750.00"),
@@ -151,6 +170,7 @@ def seed_db():
             loan_value=Decimal("50000.00")
         )
         db.add(item_a1)
+
 
         # -------------------------------------------------------------
         # TENANT B: Crown Pawn & Jewellery
