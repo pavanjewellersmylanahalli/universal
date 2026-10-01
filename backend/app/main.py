@@ -58,6 +58,16 @@ app.include_router(rates_router, prefix=api_v1)
 app.include_router(dashboard_router, prefix=api_v1)
 app.include_router(reports_router, prefix=api_v1)
 
+@app.get("/")
+def root():
+    return {
+        "message": "Universal Jewellery & Girvi Management API",
+        "status": "online",
+        "version": settings.VERSION,
+        "docs_url": "/docs"
+    }
+
 @app.get("/health")
 def health_check():
     return {"status": "ok", "version": settings.VERSION}
+
