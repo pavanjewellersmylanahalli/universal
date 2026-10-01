@@ -1,21 +1,13 @@
 services:
   - type: web
-    name: girvipro-api
-    env: node
+    name: universal-jewellery-api
+    env: python
     plan: free
-    buildCommand: "npm install && npx prisma generate && npm run build"
-    startCommand: "npm run start"
-    healthCheckPath: /api/health
+    buildCommand: "pip install -r backend/requirements.txt"
+    startCommand: "cd backend && uvicorn app.main:app --host 0.0.0.0 --port $PORT"
+    healthCheckPath: /health
     envVars:
-      - key: NODE_ENV
-        value: production
       - key: DATABASE_URL
         sync: false
-      - key: DIRECT_DATABASE_URL
-        sync: false
-      - key: AUTH_SECRET
-        sync: false
-      - key: NEXT_PUBLIC_APP_URL
-        sync: false
-      - key: STORAGE_PROVIDER
-        value: local
+      - key: SECRET_KEY
+        generateValue: true
