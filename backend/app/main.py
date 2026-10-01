@@ -58,8 +58,9 @@ app.include_router(rates_router, prefix=api_v1)
 app.include_router(dashboard_router, prefix=api_v1)
 app.include_router(reports_router, prefix=api_v1)
 
-@app.get("/")
+@app.api_route("/", methods=["GET", "HEAD"])
 def root():
+
     return {
         "message": "Universal Jewellery & Girvi Management API",
         "status": "online",
